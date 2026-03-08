@@ -55,7 +55,7 @@ const W = canvas.width, H = canvas.height;
 const GY = H - 44;
 
 // ===== ゲーム状態 =====
-let state='start', score=0, hiScore=0, frame=0, stage=1, worldX=0, scoreBase=0, bestX=0;
+let state='start', score=0, hiScore=0, frame=0, stage=1, worldX=0, scoreBase=0, bestX=0, startTime=0, clearTime=0;
 let particles=[], mamekusas=[], playerShots=[], boss=null;
 const bird = { x:80, y:0, w:40, h:48, vx:0, vy:0, onGround:false, jumpsLeft:2, facingRight:true };
 let platforms=[], enemies=[], floats=[];
@@ -249,7 +249,7 @@ function rnd(n){ return Math.random()*n; }
 function rnd01(){ return Math.random(); }
 
 function resetGame(){
-  score=0;frame=0;worldX=0;stage=1;scoreBase=0;bestX=0;particles=[];mamekusas=[];playerShots=[];boss=null;
+  score=0;frame=0;worldX=0;stage=1;scoreBase=0;bestX=0;startTime=Date.now();clearTime=0;particles=[];mamekusas=[];playerShots=[];boss=null;
   Object.assign(bird,{x:80,y:GY-bird.h,vx:0,vy:0,onGround:false,jumpsLeft:2,facingRight:true});
   buildStage();hud();
 }
@@ -496,7 +496,7 @@ function update(){
         boss.hp--;boss.hitFlash=18;bird.vy=-11;bird.jumpsLeft=2;score+=50;
         for(let i=0;i<18;i++) particles.push({x:boss.x+boss.w/2,y:boss.y+20,vx:(rnd01()-.5)*9,vy:rnd01()*-7-1,life:38,max:38,c:['#f5f3ee','#c47a3a','#5ab040','#e8d000'][i%4]});
         if(boss.hp<=0){
-          boss.alive=false;state='clear';stopMusic();
+          boss.alive=false;state='clear';clearTime=Date.now()-startTime;stopMusic();
           for(let i=0;i<50;i++) particles.push({x:rnd01()*W+worldX,y:rnd01()*H,vx:(rnd01()-.5)*10,vy:rnd01()*-8-2,life:55,max:55,c:['#f5f3ee','#c47a3a','#d42020','#5ab040','#e8d000'][i%5]});
         }
       } else {die();return;}
@@ -523,7 +523,7 @@ function update(){
       boss.hp--;boss.hitFlash=18;score+=30;
       for(let i=0;i<12;i++) particles.push({x:s.x,y:s.y,vx:(rnd01()-.5)*7,vy:rnd01()*-5-1,life:28,max:28,c:['#5ab040','#e8d000','#f5f3ee'][i%3]});
       if(boss.hp<=0){
-        boss.alive=false;state='clear';stopMusic();
+        boss.alive=false;state='clear';clearTime=Date.now()-startTime;stopMusic();
         for(let i=0;i<50;i++) particles.push({x:rnd01()*W+worldX,y:rnd01()*H,vx:(rnd01()-.5)*10,vy:rnd01()*-8-2,life:55,max:55,c:['#f5f3ee','#c47a3a','#d42020','#5ab040','#e8d000'][i%5]});
       }
     }
@@ -536,7 +536,7 @@ function update(){
 }
 
 function die(){
-  state='dead';stopMusic();
+  state='dead';clearTime=Date.now()-startTime;stopMusic();
   for(let i=0;i<14;i++) particles.push({x:bird.x+bird.w/2,y:bird.y+bird.h/2,vx:(rnd01()-.5)*8,vy:rnd01()*-7-1,life:32,max:32,c:['#f5f3ee','#c47a3a','#d42020','#a8a6bc'][i%4]});
 }
 
@@ -1033,31 +1033,79 @@ function draw(){
     ctx.fillStyle='#d42020';ctx.font='bold 1.1rem "Noto Sans JP",sans-serif';
     ctx.fillText('タップ / スペースでスタート',W/2,H/2+86);
   }
-  if(state==='dead'){
-    ctx.fillStyle='rgba(18,20,24,0.93)';ctx.fillRect(0,0,W,H);
+  if(state==='dead'||state==='clear'){
+    // 称号ロジック
+    function getTitle(){
+      if(state==='clear'){
+        const sec=clearTime/1000;
+        if(score>=1000&&sec<120) return {t:'🏆 伝説のブン',m:'神速かつ高得点！まさに伝説！',c:'#e8d000'};
+        if(score>=800&&sec<120)  return {t:'🦅 ハヤブサのブン',m:'速い！そして強い！',c:'#e8d000'};
+        if(score>=1111)          return {t:'👑 文鳥神ヨイ',m:'1111点超え…もはや神の領域！',c:'#e8a000'};
+        if(score>=1000)          return {t:'💪 覇権ブン',m:'1000点超え！完全制覇！',c:'#d06020'};
+        if(score>=600)           return {t:'🌟 文鳥界のブン',m:'素晴らしいプレイ！文鳥界の頂点へ！',c:'#5ab040'};
+        if(score>=400)           return {t:'🌱 豆苗の使い手',m:'ナイスクリア！豆苗を極めた！',c:'#5ab040'};
+        return {t:'🐦 誇らしげなブン',m:'クリアおめでとう！胸を張れ！',c:'#c47a3a'};
+      } else {
+        if(stage===3) return {t:'😇 もう少し！',m:'ステージ3まで到達！あと一歩！',c:'#c47a3a'};
+        if(stage===2) return {t:'🐦 修行中',m:'ステージ2到達！まだまだこれから！',c:'#6888c8'};
+        return {t:'🥚 ひよっこ',m:'ステージ1で散った…練習あるのみ！',c:'#9a9fa8'};
+      }
+    }
+    const title=getTitle();
+    const elapsed=clearTime;
+    const sec=Math.floor(elapsed/1000);
+    const timeStr=Math.floor(sec/60)+':'+(sec%60<10?'0':'')+sec%60;
+
+    // 背景
+    ctx.fillStyle='rgba(12,14,20,0.96)';ctx.fillRect(0,0,W,H);
+
+    // 上部タイトル帯
+    const isClr=state==='clear';
+    ctx.fillStyle=isClr?'rgba(40,60,20,0.8)':'rgba(60,20,20,0.8)';
+    ctx.fillRect(0,H/2-170,W,64);
+    ctx.fillStyle=isClr?'#e8d000':'#d42020';
+    ctx.font='bold 2rem "Noto Sans JP",sans-serif';
     ctx.textAlign='center';
-    ctx.fillStyle='#d42020';ctx.font='bold 2rem "Noto Sans JP",sans-serif';
-    ctx.fillText('ざんねん…',W/2,H/2-50);
-    ctx.fillStyle='#f5f3ee';ctx.font='1.1rem "Noto Sans JP",sans-serif';
-    ctx.fillText('SCORE: '+score+'　STAGE: '+stage,W/2,H/2-4);
-    ctx.fillStyle='#9a9fa8';ctx.font='1rem "Noto Sans JP",sans-serif';
-    ctx.fillText('BEST: '+hiScore,W/2,H/2+26);
-    ctx.fillStyle='#c47a3a';ctx.font='bold 1rem "Noto Sans JP",sans-serif';
-    ctx.fillText('タップ / スペースでもう一度',W/2,H/2+72);
-  }
-  if(state==='clear'){
-    ctx.fillStyle='rgba(18,20,24,0.93)';ctx.fillRect(0,0,W,H);
+    ctx.fillText(isClr?'🎉 クリア！':'ゲームオーバー',W/2,H/2-118);
+
+    // 称号
+    ctx.fillStyle=title.c;
+    ctx.font='bold 1.3rem "Noto Sans JP",sans-serif';
+    ctx.fillText(title.t,W/2,H/2-72);
+    ctx.fillStyle='#b0b8c0';
+    ctx.font='0.82rem "Noto Sans JP",sans-serif';
+    ctx.fillText(title.m,W/2,H/2-48);
+
+    // 区切り線
+    ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(W*0.1,H/2-34);ctx.lineTo(W*0.9,H/2-34);ctx.stroke();
+
+    // スタッツ
+    const stats=[
+      ['SCORE', score],
+      ['STAGE', stage+' / 3'],
+      ['TIME',  timeStr],
+      ['BEST',  hiScore],
+    ];
+    stats.forEach(([label,val],i)=>{
+      const col=i%2===0?60:W/2;
+      const row=H/2+10+Math.floor(i/2)*52;
+      ctx.fillStyle='#6a7888';
+      ctx.font='0.72rem "Noto Sans JP",sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(label,col+W/4-24,row-8);
+      ctx.fillStyle='#f0ece4';
+      ctx.font='bold 1.4rem "Noto Sans JP",sans-serif';
+      ctx.fillText(val,col+W/4-24,row+20);
+    });
+
+    // 再プレイ
+    ctx.fillStyle='rgba(255,255,255,0.08)';
+    ctx.fillRect(W/2-100,H/2+114,200,40);
+    ctx.fillStyle='#c47a3a';
+    ctx.font='bold 0.95rem "Noto Sans JP",sans-serif';
     ctx.textAlign='center';
-    ctx.fillStyle='#e8d000';ctx.font='bold 2.4rem "Noto Sans JP",sans-serif';
-    ctx.fillText('🎉 クリア！',W/2,H/2-64);
-    ctx.fillStyle='#5ab040';ctx.font='1.1rem "Noto Sans JP",sans-serif';
-    ctx.fillText('ラスボスを倒した！おめでとう！',W/2,H/2-16);
-    ctx.fillStyle='#f5f3ee';ctx.font='1rem "Noto Sans JP",sans-serif';
-    ctx.fillText('SCORE: '+score,W/2,H/2+18);
-    ctx.fillStyle='#9a9fa8';ctx.font='1rem "Noto Sans JP",sans-serif';
-    ctx.fillText('BEST: '+hiScore,W/2,H/2+44);
-    ctx.fillStyle='#c47a3a';ctx.font='bold 1rem "Noto Sans JP",sans-serif';
-    ctx.fillText('タップ / スペースでもう一度',W/2,H/2+82);
+    ctx.fillText('タップ / スペースでもう一度',W/2,H/2+140);
   }
 }
 
