@@ -47,7 +47,7 @@ const W = canvas.width, H = canvas.height;
 const GY = H - 44;
 
 // ===== ゲーム状態 =====
-let state='start', score=0, hiScore=0, frame=0, stage=1, worldX=0;
+let state='start', score=0, hiScore=0, frame=0, stage=1, worldX=0, scoreBase=0, bestX=0;
 let particles=[], mamekusas=[], playerShots=[], boss=null;
 const bird = { x:80, y:0, w:40, h:48, vx:0, vy:0, onGround:false, jumpsLeft:2, facingRight:true };
 let platforms=[], enemies=[], floats=[];
@@ -239,7 +239,7 @@ function rnd(n){ return Math.random()*n; }
 function rnd01(){ return Math.random(); }
 
 function resetGame(){
-  score=0;frame=0;worldX=0;stage=1;particles=[];mamekusas=[];playerShots=[];boss=null;
+  score=0;frame=0;worldX=0;stage=1;scoreBase=0;bestX=0;particles=[];mamekusas=[];playerShots=[];boss=null;
   Object.assign(bird,{x:80,y:GY-bird.h,vx:0,vy:0,onGround:false,jumpsLeft:2,facingRight:true});
   buildStage();hud();
 }
@@ -342,14 +342,19 @@ function update(){
     }
   }
   if(bird.y>H+80){die();return;}
+  if(bird.x<0) bird.x=0; // 左端の壁
   worldX=Math.max(0,Math.min(bird.x-150, stageLen()-W));
-  score=Math.max(score,Math.floor((bird.x-80)/8));
+  // 歩行スコア：最大到達地点を記録して安定加算
+  if(bird.x > bestX) bestX = bird.x;
+  const walkScore = Math.floor((bestX - 80) / 8);
+  score = Math.max(score, scoreBase + walkScore);
   if(score>hiScore)hiScore=score;
   hud();
 
   // ステージ進行
   if(stage<3&&bird.x>stageLen()){
     stage++;
+    scoreBase=score;bestX=0; // 現在のスコアを引き継ぐ
     Object.assign(bird,{x:80,y:GY-bird.h,vx:0,vy:0,onGround:false,jumpsLeft:2});
     worldX=0;mamekusas=[];playerShots=[];buildStage();hud();playMusic(stage);
     for(let i=0;i<20;i++) particles.push({x:rnd01()*W,y:rnd01()*H,vx:(rnd01()-.5)*5,vy:rnd01()*-4-1,life:35,max:35,c:['#f5f3ee','#c47a3a','#d42020'][i%3]});
@@ -361,6 +366,7 @@ function update(){
   for(const e of enemies){
     if(!e.alive)continue;
     e.t++;
+    const onScreen = e.x+e.w > worldX-20 && e.x < worldX+W+20;
 
     if(e.type==='crow'){
       const isGold=e.gold||false;
@@ -394,9 +400,10 @@ function update(){
           if(e.y>e.baseY+20||e.diveTimer>25){ e.diveMode=false; e.diveTimer=0; }
         }
       }
-      // 当たり判定
-      if(aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,e.x,e.y,e.w,e.h)){
-        if(bird.vy>0&&bird.y+bird.h<e.y+e.h*0.5){
+      // 当たり判定（画面内のみ）
+      if(onScreen&&aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,e.x,e.y,e.w,e.h)){
+        const stompY = bird.y+bird.h < e.y+e.h*0.6;
+        if(stompY){
           e.alive=false;bird.vy=-10;bird.jumpsLeft=2;score+=isGold?40:15;
           for(let i=0;i<10;i++) particles.push({x:e.x+e.w/2,y:e.y,vx:(rnd01()-.5)*6,vy:rnd01()*-5-1,life:28,max:28,c:isGold?'#f0d000':'#2a2a3a'});
         } else { hitByEnemy=true; }
@@ -408,8 +415,9 @@ function update(){
       // ヘビは中央寄り(左右20px除いた範囲)だけ踏める
       const sx = e.type==='snake' ? e.x+20 : e.x;
       const sw = e.type==='snake' ? e.w-40 : e.w;
-      if(aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,sx,e.y,sw,e.h)){
-        if(bird.vy>0&&bird.y+bird.h<e.y+e.h*0.5){
+      if(onScreen&&aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,sx,e.y,sw,e.h)){
+        const stompY = bird.y+bird.h < e.y+e.h*0.6;
+        if(stompY){
           e.alive=false;bird.vy=-8;bird.jumpsLeft=2;
           score+=e.type==='snake'?20:10;
           const ec=e.type==='snake'?'#4aa030':'#9090a8';
@@ -426,6 +434,8 @@ function update(){
     if(!s.alive)continue;
     for(const e of enemies){
       if(!e.alive)continue;
+      const eOnScreen = e.x+e.w > worldX-20 && e.x < worldX+W+20;
+      if(!eOnScreen)continue;
       if(aabb(s.x-8,s.y-8,16,16,e.x,e.y,e.w,e.h)){
         s.alive=false;
         e.hp--;
@@ -456,8 +466,17 @@ function update(){
     if(boss.throwTimer>interval){
       boss.throwTimer=0;
       const dir=boss.x>bird.x?-1:1;
-      mamekusas.push({x:boss.x+boss.w/2,y:boss.y+45,vx:dir*(3.5+rnd(2)),vy:-5-rnd(3),alive:true,t:0});
-      mamekusas.push({x:boss.x+boss.w/2,y:boss.y+45,vx:dir*(2+rnd(2)),vy:-3.5-rnd(2),alive:true,t:0});
+      const bx=boss.x+boss.w/2, by=boss.y+45;
+      if(boss.hp<=4){
+        // HP半分以下：3方向同時発射
+        mamekusas.push({x:bx,y:by,vx:dir*(3.5+rnd(1.5)),vy:-5-rnd(2),alive:true,t:0});
+        mamekusas.push({x:bx,y:by,vx:dir*(2.5+rnd(1)),vy:-2,alive:true,t:0});
+        mamekusas.push({x:bx,y:by,vx:dir*(4+rnd(1)),vy:-8,alive:true,t:0});
+      } else {
+        // 通常：2発
+        mamekusas.push({x:bx,y:by,vx:dir*(3.5+rnd(2)),vy:-5-rnd(3),alive:true,t:0});
+        mamekusas.push({x:bx,y:by,vx:dir*(2+rnd(2)),vy:-3.5-rnd(2),alive:true,t:0});
+      }
     }
     if(aabb(bird.x+6,bird.y+6,bird.w-12,bird.h-10,boss.x+15,boss.y+15,boss.w-30,boss.h-30)){
       if(bird.vy>0&&bird.y+bird.h<boss.y+boss.h*0.33){
@@ -475,7 +494,7 @@ function update(){
   for(const m of mamekusas){
     if(!m.alive)continue;
     m.t++;m.x+=m.vx;m.vy+=0.3;m.y+=m.vy;
-    if(m.y>GY+10){m.alive=false;continue;}
+    if(m.y>GY+10||m.x<worldX-20||m.x>worldX+W+20){m.alive=false;continue;}
     if(aabb(bird.x+6,bird.y+6,bird.w-12,bird.h-10,m.x-9,m.y-9,18,18)){die();return;}
   }
   mamekusas=mamekusas.filter(m=>m.alive);
@@ -857,13 +876,13 @@ function drawCrowSprite(x,y,t,flash=0,diveMode=false,facingLeft=false,gold=false
   if(diveMode) ctx.rotate(facingLeft?-0.4:0.4);
   if(gold){ ctx.shadowColor='#f0d000'; ctx.shadowBlur=12; }
 
-  const bodyC  = gold?'#b87800':'#1a1a22';
-  const wingC  = gold?'#d49000':'#222230';
-  const wingC2 = gold?'#c08000':'#1a1a22';
-  const headC  = gold?'#a06800':'#111118';
-  const beakC  = gold?'#806000':'#303038';
-  const eyeC   = gold?'#ff2020':'#cc2020';
-  const eyeC2  = gold?'#ff6060':'#ff4040';
+  const bodyC  = gold?'#b87800':'#4a5068';
+  const wingC  = gold?'#d49000':'#5a6080';
+  const wingC2 = gold?'#c08000':'#404860';
+  const headC  = gold?'#a06800':'#383d55';
+  const beakC  = gold?'#806000':'#6a7090';
+  const eyeC   = gold?'#ff2020':'#ff3030';
+  const eyeC2  = gold?'#ff6060':'#ff7070';
   // 影
   ctx.fillStyle='rgba(0,0,0,0.18)';
   ctx.beginPath();ctx.ellipse(0,18,14,4,0,0,Math.PI*2);ctx.fill();
