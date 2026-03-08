@@ -142,9 +142,9 @@ function scheduleLoop(s, ac, master){
       src.onended=()=>{ try{src.disconnect();g.disconnect();}catch(e){} };
     }
   } else {
-    mel.forEach((f)=>{ n(f,now+t,b*2*0.9,0.13,'sine',master); t+=b*2; });
-    bas3.forEach((f,i)=>{ n(f,now+i*b*4,b*3.8,0.11,'triangle',master); n(f/2,now+i*b*4,b*3.8,0.07,'sine',master); });
-    for(let i=0;i<16;i++) n(55,now+i*b*2,b*0.5,0.12,'sine',master);
+    mel.forEach((f)=>{ n(f,now+t,b*2*0.9,0.22,'sine',master); t+=b*2; });
+    bas3.forEach((f,i)=>{ n(f,now+i*b*4,b*3.8,0.18,'triangle',master); n(f/2,now+i*b*4,b*3.8,0.12,'sine',master); });
+    for(let i=0;i<16;i++) n(55,now+i*b*2,b*0.5,0.18,'sine',master);
   }
 
   const loopDur = s===3 ? mel.length*b*2 : mel.length*b;
@@ -161,10 +161,12 @@ function playMusic(s){
     master.gain.value=soundOn?0.85:0;
     master.connect(ac.destination);
     masterNode=master;
-    if(ac.state==='suspended'){
-      ac.resume().then(()=>{ if(currentTrack===s) scheduleLoop(s,ac,master); });
+    // 常にresumeを待ってから開始（suspendedでなくても安全）
+    const start=()=>{ if(currentTrack===s) scheduleLoop(s,ac,master); };
+    if(ac.state!=='running'){
+      ac.resume().then(start).catch(start);
     } else {
-      scheduleLoop(s,ac,master);
+      start();
     }
   }catch(err){console.warn('music:',err);}
 }
@@ -326,10 +328,13 @@ function startGame(){
   if(!audioCtx){
     audioCtx=new(window.AudioContext||window.webkitAudioContext)();
   }
-  if(audioCtx.state==='suspended') audioCtx.resume();
-  resetGame();state='play';
-  // 少し遅延してスケジュール（resume完了を確実に待つ）
-  setTimeout(()=>playMusic(1), 80);
+  // resumeを確実に待ってから音楽開始
+  const doStart=()=>{ resetGame(); state='play'; playMusic(1); };
+  if(audioCtx.state!=='running'){
+    audioCtx.resume().then(doStart).catch(doStart);
+  } else {
+    doStart();
+  }
 }
 function aabb(ax,ay,aw,ah,bx,by,bw,bh){return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;}
 
@@ -539,196 +544,126 @@ function die(){
 function drawBirdSprite(x,y,right,onGround,jumpsLeft){
   const j2=jumpsLeft===0&&!onGround, j1=!onGround&&!j2;
   const lp=Math.floor(frame/10)%2;
+  const wa=j2?-0.7:j1?-0.45:-0.1+Math.sin(frame*0.15)*0.12;
   ctx.save();
   ctx.translate(x+bird.w/2,y+bird.h/2);
   if(!right)ctx.scale(-1,1);
-
+  ctx.scale(0.85,0.85);
   // 影
-  ctx.fillStyle='rgba(0,0,0,0.2)';
-  ctx.beginPath();ctx.ellipse(0,24,14,4,0,0,Math.PI*2);ctx.fill();
-
-  // 尾羽
-  ctx.fillStyle='#505048';
-  ctx.beginPath();ctx.moveTo(-13,4);ctx.lineTo(-23,1);ctx.lineTo(-23,9);ctx.lineTo(-13,9);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#1c1c14';ctx.lineWidth=1.5;
-  ctx.beginPath();ctx.moveTo(-13,4);ctx.lineTo(-23,1);ctx.lineTo(-23,9);ctx.lineTo(-13,9);ctx.closePath();ctx.stroke();
-
+  ctx.fillStyle='rgba(0,0,0,0.22)';
+  ctx.beginPath();ctx.ellipse(0,24,16,4,0,0,Math.PI*2);ctx.fill();
+  // 尻尾
+  ctx.fillStyle='#222';
+  ctx.beginPath();ctx.moveTo(-14,0);ctx.lineTo(-28,-4);ctx.lineTo(-26,4);ctx.lineTo(-13,4);ctx.closePath();ctx.fill();
   // 羽
-  const wa=j2?-0.7:j1?-0.45:-0.1+Math.sin(frame*0.15)*0.12;
-  ctx.fillStyle='#6a6860';
-  ctx.save();ctx.translate(-4,4);ctx.rotate(wa);
-  ctx.beginPath();ctx.ellipse(0,0,13,6,0.2,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#1c1c14';ctx.lineWidth=1.8;
-  ctx.beginPath();ctx.ellipse(0,0,13,6,0.2,0,Math.PI*2);ctx.stroke();
+  ctx.save();ctx.translate(-3,0);ctx.rotate(wa);
+  ctx.fillStyle='#787068';
+  ctx.beginPath();ctx.ellipse(0,0,16,7,0.15,0,Math.PI*2);ctx.fill();
   ctx.restore();
-
-  // 体（グレー）
-  ctx.fillStyle='#9a9488';
-  ctx.beginPath();
-  ctx.moveTo(14,8);ctx.bezierCurveTo(16,-4,8,-16,0,-16);
-  ctx.bezierCurveTo(-10,-16,-16,-4,-14,8);ctx.bezierCurveTo(-12,18,12,18,14,8);
-  ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#1c1c14';ctx.lineWidth=2.2;
-  ctx.beginPath();
-  ctx.moveTo(14,8);ctx.bezierCurveTo(16,-4,8,-16,0,-16);
-  ctx.bezierCurveTo(-10,-16,-16,-4,-14,8);ctx.bezierCurveTo(-12,18,12,18,14,8);
-  ctx.closePath();ctx.stroke();
-
-  // お腹（白）
-  ctx.fillStyle='#d8d4cc';
-  ctx.beginPath();ctx.ellipse(2,6,9,11,0.1,0,Math.PI*2);ctx.fill();
-
-  // 頭（★黒★）
-  ctx.fillStyle='#1c1c1c';
-  ctx.beginPath();ctx.arc(4,-14,13,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#0a0a0a';ctx.lineWidth=2;
-  ctx.beginPath();ctx.arc(4,-14,13,0,Math.PI*2);ctx.stroke();
-
-  // 白ほっぺ
-  ctx.fillStyle='#e8e0d0';
-  ctx.beginPath();ctx.ellipse(10,-11,7,6,0.2,0,Math.PI*2);ctx.fill();
-
+  // 体
+  ctx.fillStyle='#888078';
+  ctx.beginPath();ctx.moveTo(0,20);ctx.bezierCurveTo(-18,20,-20,2,-18,-10);ctx.bezierCurveTo(-14,-22,14,-22,18,-10);ctx.bezierCurveTo(20,2,18,20,0,20);ctx.closePath();ctx.fill();
+  // お腹
+  ctx.fillStyle='#e0dcd4';
+  ctx.beginPath();ctx.ellipse(2,8,10,13,0.05,0,Math.PI*2);ctx.fill();
+  // 頭
+  ctx.fillStyle='#1a1a1a';
+  ctx.beginPath();ctx.arc(2,-18,18,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#5a5060';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(2,-18,18,0,Math.PI*2);ctx.stroke();
+  // ほっぺ
+  ctx.fillStyle='#cec8bc';
+  ctx.beginPath();ctx.ellipse(12,-15,7,6,0.1,0,Math.PI*2);ctx.fill();
   // 目
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(9,-18,3.5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(9,-18,2,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(10,-19,0.8,0,Math.PI*2);ctx.fill();
-
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(13,-23,4.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(13,-23,3,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#aa2828';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(13,-23,4.5,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(14,-24,1.2,0,Math.PI*2);ctx.fill();
   // くちばし
-  ctx.fillStyle='#c03020';
-  ctx.beginPath();ctx.moveTo(15,-14);ctx.lineTo(23,-12);ctx.lineTo(15,-10);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#1c1c14';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(15,-12);ctx.lineTo(22,-12);ctx.stroke();
-
+  ctx.fillStyle='#c83828';
+  ctx.beginPath();ctx.moveTo(15,-20);ctx.lineTo(30,-16);ctx.lineTo(15,-10);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#9a2818';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(15,-15);ctx.lineTo(29,-15);ctx.stroke();
   // 足
-  ctx.strokeStyle='#c03020';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.strokeStyle='#c04030';ctx.lineWidth=3;ctx.lineCap='round';
   if(j1||j2){
-    ctx.beginPath();ctx.moveTo(-2,18);ctx.lineTo(-2,14);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(6,18);ctx.lineTo(6,14);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-4,18);ctx.lineTo(-4,12);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(6,18);ctx.lineTo(6,12);ctx.stroke();
   } else {
-    ctx.beginPath();ctx.moveTo(-2,18);ctx.lineTo(-2,26+lp*-5);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-4,18);ctx.lineTo(-4,26+lp*-5);ctx.stroke();
     ctx.beginPath();ctx.moveTo(6,18);ctx.lineTo(6,26+(1-lp)*-5);ctx.stroke();
   }
   if(j2){
     ctx.globalAlpha=0.3+Math.sin(frame*0.6)*0.2;
     ctx.strokeStyle='#d42020';ctx.lineWidth=3;
-    ctx.beginPath();ctx.ellipse(0,-2,22,26,0,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.ellipse(0,0,26,32,0,0,Math.PI*2);ctx.stroke();
     ctx.globalAlpha=1;
   }
   ctx.restore();
 }
 
 function drawCatSprite(x,y,t,hp=2,flash=0,gold=false,facingLeft=false){
-  // 四足歩行ネコ：横向き、体は横長、4本足がアニメーション
-  const body  = gold ? '#c8920a' : '#808098';
-  const belly = gold ? '#f0c040' : '#c8c4d8';
-  const tail  = gold ? '#a07008' : '#707088';
-  const earIn = gold ? '#e8a020' : '#e8a8b0';
-  const eyeC  = gold ? '#e84020' : '#e8c000';
+  const body  = gold ? '#c8920a' : '#707088';
+  const belly = gold ? '#f0c040' : '#b8b4c8';
+  const tail  = gold ? '#a07008' : '#606078';
+  const earIn = gold ? '#e8a020' : '#d8a0a8';
+  const eyeC  = gold ? '#e84020' : '#d4b000';
 
-  // ネコのサイズ: w=40, h=28 ぐらいで横長に
-  // 原点を胴体中心に
   ctx.save();
   ctx.translate(x+22, y+14);
   if(facingLeft) ctx.scale(-1,1);
+  if(flash>0) ctx.globalAlpha=0.4+Math.sin(flash*1.8)*0.6;
   if(gold){ ctx.shadowColor='#f0d000'; ctx.shadowBlur=10; }
 
-  const walk = t*0.12; // 歩行アニメ位相
+  const walk = t*0.12;
+  const ts = Math.sin(walk)*0.4;
 
-  // しっぽ（後方上向き・ゆらゆら）
-  const tailSway = Math.sin(walk)*0.4;
+  // しっぽ
   ctx.strokeStyle=tail; ctx.lineWidth=4; ctx.lineCap='round';
-  ctx.beginPath();
-  ctx.moveTo(-17, 2);
-  ctx.bezierCurveTo(-28,-4,-32,-18+tailSway*6,-26,-24+tailSway*8);
-  ctx.stroke();
-  // しっぽ先端ふわっと
-  ctx.beginPath();
-  ctx.arc(-26,-24+tailSway*8, 4, 0, Math.PI*2);
-  ctx.fillStyle=tail; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-17,2); ctx.bezierCurveTo(-28,-4,-32,-18+ts*6,-26,-24+ts*8); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-26,-24+ts*8,4,0,Math.PI*2); ctx.fillStyle=tail; ctx.fill();
 
-  // 後ろ足（2本）
-  const rleg1 = Math.sin(walk+Math.PI)*10;
-  const rleg2 = Math.sin(walk)*10;
+  // 後ろ足
+  const r1=Math.sin(walk+Math.PI)*10, r2=Math.sin(walk)*10;
   ctx.strokeStyle=body; ctx.lineWidth=5; ctx.lineCap='round';
-  // 後ろ左足
-  ctx.beginPath();
-  ctx.moveTo(-10, 8);
-  ctx.lineTo(-12+rleg1*0.4, 14);
-  ctx.lineTo(-10+rleg1*0.3, 22);
-  ctx.stroke();
-  // 後ろ右足
-  ctx.beginPath();
-  ctx.moveTo(-6, 8);
-  ctx.lineTo(-4+rleg2*0.4, 14);
-  ctx.lineTo(-6+rleg2*0.3, 22);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-10,8); ctx.lineTo(-12+r1*0.4,14); ctx.lineTo(-10+r1*0.3,22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-6,8); ctx.lineTo(-4+r2*0.4,14); ctx.lineTo(-6+r2*0.3,22); ctx.stroke();
 
-  // 胴体（横長楕円）
-  ctx.fillStyle=body;
-  ctx.beginPath(); ctx.ellipse(0, 4, 18, 11, 0, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=1.8;
-  ctx.beginPath(); ctx.ellipse(0, 4, 18, 11, 0, 0, Math.PI*2); ctx.stroke();
-  // お腹（明るめ）
-  ctx.fillStyle=belly;
-  ctx.beginPath(); ctx.ellipse(2, 7, 10, 6, 0, 0, Math.PI*2); ctx.fill();
+  // 胴体
+  ctx.fillStyle=body; ctx.beginPath(); ctx.ellipse(0,4,18,11,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=belly; ctx.beginPath(); ctx.ellipse(2,7,10,6,0,0,Math.PI*2); ctx.fill();
 
-  // 前足（2本）- 体の前に描く
-  const fleg1 = Math.sin(walk)*10;
-  const fleg2 = Math.sin(walk+Math.PI)*10;
+  // 前足
+  const f1=Math.sin(walk)*10, f2=Math.sin(walk+Math.PI)*10;
   ctx.strokeStyle=body; ctx.lineWidth=5; ctx.lineCap='round';
-  // 前左足
-  ctx.beginPath();
-  ctx.moveTo(10, 4);
-  ctx.lineTo(12+fleg1*0.4, 12);
-  ctx.lineTo(10+fleg1*0.3, 22);
-  ctx.stroke();
-  // 前右足
-  ctx.beginPath();
-  ctx.moveTo(14, 4);
-  ctx.lineTo(16+fleg2*0.4, 12);
-  ctx.lineTo(14+fleg2*0.3, 22);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(10,4); ctx.lineTo(12+f1*0.4,12); ctx.lineTo(10+f1*0.3,22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(14,4); ctx.lineTo(16+f2*0.4,12); ctx.lineTo(14+f2*0.3,22); ctx.stroke();
 
-  // 頭（右前方）
-  ctx.fillStyle=body;
-  ctx.beginPath(); ctx.arc(20, -2, 11, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=1.8;
-  ctx.beginPath(); ctx.arc(20, -2, 11, 0, Math.PI*2); ctx.stroke();
+  // 頭
+  ctx.fillStyle=body; ctx.beginPath(); ctx.arc(20,-2,11,0,Math.PI*2); ctx.fill();
 
-  // 耳（2つ）
+  // 耳
   [[14,-10,11,-20,18,-10],[22,-10,20,-20,27,-10]].forEach(([x1,y1,x2,y2,x3,y3])=>{
-    ctx.fillStyle=body;
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=1.4;
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.closePath(); ctx.stroke();
+    ctx.fillStyle=body; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=earIn; ctx.beginPath(); ctx.moveTo(x1+1,y1-1); ctx.lineTo(x2+1,y2+3); ctx.lineTo(x3-1,y3-1); ctx.closePath(); ctx.fill();
   });
-  // 耳内側
-  ctx.fillStyle=earIn;
-  ctx.beginPath(); ctx.moveTo(15,-9); ctx.lineTo(13,-18); ctx.lineTo(18,-9); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(23,-9); ctx.lineTo(22,-18); ctx.lineTo(27,-9); ctx.closePath(); ctx.fill();
 
-  // 目（右向きなので右目1つ）
+  // 目
   ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(24,-4,3.5,0,Math.PI*2); ctx.fill();
   ctx.fillStyle=eyeC;   ctx.beginPath(); ctx.arc(24,-4,2,  0,Math.PI*2); ctx.fill();
   ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(24,-4,0.9,0,Math.PI*2); ctx.fill();
-  // つり目眉
-  ctx.strokeStyle='#555'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.moveTo(20,-7); ctx.lineTo(27,-6); ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(25,-5,0.8,0,Math.PI*2); ctx.fill();
 
-  // 鼻
-  ctx.fillStyle='#e88090';
-  ctx.beginPath(); ctx.arc(28,-2,1.8,0,Math.PI*2); ctx.fill();
-
-  // ひげ（ほっぺから横に伸びる）
-  ctx.strokeStyle=gold?'#e8d080':'#ccc'; ctx.lineWidth=1;
+  // 鼻・ひげ
+  ctx.fillStyle='#d08090'; ctx.beginPath(); ctx.arc(28,-2,1.8,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle=gold?'#e8d080':'#bbb'; ctx.lineWidth=1;
   [[18,-1,8,0],[18,-2,8,-3],[18,-3,9,-6]].forEach(([x1,y1,x2,y2])=>{
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   });
 
-  ctx.shadowBlur=0;ctx.shadowColor='transparent';
-  // 影
-  ctx.fillStyle='rgba(0,0,0,0.15)';
-  ctx.beginPath(); ctx.ellipse(4,24,18,4,0,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.shadowColor='transparent';
+  ctx.fillStyle='rgba(0,0,0,0.10)'; ctx.beginPath(); ctx.ellipse(4,24,18,4,0,0,Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
@@ -736,45 +671,44 @@ function drawSnakeSprite(x,y,t,hp=3,flash=0,gold=false,facingRight=false){
   const bodyC  = gold ? '#c8920a' : '#3a8828';
   const stripeC= gold ? '#f0d040' : '#5ab040';
   const headC  = gold ? '#a07008' : '#2a6820';
-  const eyeC   = gold ? '#d42020' : '#e8d000';
+  const eyeC   = gold ? '#d42020' : '#d4c000';
   const segs=7, sw=14, totalW=segs*sw+20;
   ctx.save();
   if(facingRight){
-    // 右向き：そのまま translate して scale(1,1)
     ctx.translate(x,y+16);
   } else {
-    // 左向き（デフォルト）：右端に translate して scale(-1,1)
-    ctx.translate(x+totalW,y+16);ctx.scale(-1,1);
+    ctx.translate(x+totalW,y+16); ctx.scale(-1,1);
   }
-  if(flash>0)ctx.globalAlpha=0.4+Math.sin(flash*1.8)*0.6;
-  if(gold){ctx.shadowColor='#f0d000';ctx.shadowBlur=10;}
+  if(flash>0) ctx.globalAlpha=0.4+Math.sin(flash*1.8)*0.6;
+  if(gold){ ctx.shadowColor='#f0d000'; ctx.shadowBlur=10; }
 
   // 影
-  ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=10;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=10; ctx.lineCap='round'; ctx.lineJoin='round';
   ctx.beginPath();
-  for(let i=0;i<=segs;i++){const sx=i*sw,sy=Math.sin(t*0.1+i*0.9)*6+3;i===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);}
+  for(let i=0;i<=segs;i++){const sx=i*sw,sy=Math.sin(t*0.1+i*0.9)*6+3; i===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);}
   ctx.stroke();
 
-  ctx.strokeStyle=bodyC;ctx.lineWidth=12;
+  // 体
+  ctx.strokeStyle=bodyC; ctx.lineWidth=12;
   ctx.beginPath();
-  for(let i=0;i<=segs;i++){const sx=i*sw,sy=Math.sin(t*0.1+i*0.9)*6;i===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);}
+  for(let i=0;i<=segs;i++){const sx=i*sw,sy=Math.sin(t*0.1+i*0.9)*6; i===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);}
   ctx.stroke();
-  ctx.strokeStyle=stripeC;ctx.lineWidth=5;
+  ctx.strokeStyle=stripeC; ctx.lineWidth=5;
   ctx.beginPath();
-  for(let i=0;i<=segs;i++){const sx=i*sw,sy=Math.sin(t*0.1+i*0.9)*6;i===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);}
+  for(let i=0;i<=segs;i++){const sx=i*sw,sy=Math.sin(t*0.1+i*0.9)*6; i===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);}
   ctx.stroke();
 
   const hx=segs*sw, hy=Math.sin(t*0.1+segs*0.9)*6;
-  ctx.shadowBlur=0;ctx.shadowColor='transparent';
-  ctx.fillStyle=headC;ctx.beginPath();ctx.ellipse(hx+8,hy,10,8,0,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#1c1c1c';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(hx+8,hy,10,8,0,0,Math.PI*2);ctx.stroke();
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(hx+12,hy-3,3,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=eyeC;ctx.beginPath();ctx.arc(hx+12,hy-3,2,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(hx+12,hy-3,1,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(220,150,100,0.35)';ctx.beginPath();ctx.arc(hx+8,hy+1,4,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#d42020';ctx.lineWidth=1.5;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(hx+18,hy);ctx.lineTo(hx+23,hy-3);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(hx+18,hy);ctx.lineTo(hx+23,hy+3);ctx.stroke();
+  ctx.shadowBlur=0; ctx.shadowColor='transparent';
+  ctx.fillStyle=headC; ctx.beginPath(); ctx.ellipse(hx+8,hy,10,8,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(hx+12,hy-3,3,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=eyeC;  ctx.beginPath(); ctx.arc(hx+12,hy-3,2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#111';ctx.beginPath(); ctx.arc(hx+12,hy-3,1,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath(); ctx.arc(hx+13,hy-4,0.7,0,Math.PI*2); ctx.fill();
+  // 舌
+  ctx.strokeStyle='#d42020'; ctx.lineWidth=1.5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(hx+18,hy); ctx.lineTo(hx+23,hy-3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hx+18,hy); ctx.lineTo(hx+23,hy+3); ctx.stroke();
   ctx.restore();
 }
 
@@ -811,49 +745,51 @@ function drawBoss(b){
   ctx.strokeStyle='#bbb';ctx.lineWidth=1.8;ctx.beginPath();ctx.ellipse(0,0,13,6,0.2,0,Math.PI*2);ctx.stroke();
   ctx.restore();
 
-  // 体（純白）
-  ctx.fillStyle='#ffffff';
+  // 体（純白・ぽってり）
+  ctx.fillStyle='#f2eee6';
   ctx.beginPath();
-  ctx.moveTo(14,8);ctx.bezierCurveTo(16,-4,8,-16,0,-16);
-  ctx.bezierCurveTo(-10,-16,-16,-4,-14,8);ctx.bezierCurveTo(-12,18,12,18,14,8);
+  ctx.moveTo(0,18);ctx.bezierCurveTo(-20,18,-22,0,-20,-10);
+  ctx.bezierCurveTo(-16,-22,16,-22,20,-10);ctx.bezierCurveTo(22,0,20,18,0,18);
   ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#ccc';ctx.lineWidth=2;
+  ctx.strokeStyle='#ccc';ctx.lineWidth=1.5;
   ctx.beginPath();
-  ctx.moveTo(14,8);ctx.bezierCurveTo(16,-4,8,-16,0,-16);
-  ctx.bezierCurveTo(-10,-16,-16,-4,-14,8);ctx.bezierCurveTo(-12,18,12,18,14,8);
+  ctx.moveTo(0,18);ctx.bezierCurveTo(-20,18,-22,0,-20,-10);
+  ctx.bezierCurveTo(-16,-22,16,-22,20,-10);ctx.bezierCurveTo(22,0,20,18,0,18);
   ctx.closePath();ctx.stroke();
 
-  // お腹（薄グレー）
-  ctx.fillStyle='#f0eee8';
-  ctx.beginPath();ctx.ellipse(2,6,9,11,0.1,0,Math.PI*2);ctx.fill();
+  // お腹（白）
+  ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.ellipse(2,6,11,14,0.05,0,Math.PI*2);ctx.fill();
 
-  // 頭（白）
-  ctx.fillStyle='#ffffff';
-  ctx.beginPath();ctx.arc(4,-14,13,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#cccccc';ctx.lineWidth=2;
-  ctx.beginPath();ctx.arc(4,-14,13,0,Math.PI*2);ctx.stroke();
+  // 頭（白・大きめ）
+  ctx.fillStyle='#f2eee6';
+  ctx.beginPath();ctx.arc(2,-18,18,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#ccc';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.arc(2,-18,18,0,Math.PI*2);ctx.stroke();
 
-  // 白ほっぺ
-  ctx.fillStyle='#e8e0d0';
-  ctx.beginPath();ctx.ellipse(10,-11,7,6,0.2,0,Math.PI*2);ctx.fill();
+  // ほっぺ（控えめピンク）
+  ctx.fillStyle='#e0bcb8';
+  ctx.beginPath();ctx.ellipse(12,-14,7,6,0.1,0,Math.PI*2);ctx.fill();
 
-  // 目（怒り赤目）
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(9,-18,3.5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#d42020';ctx.beginPath();ctx.arc(9,-18,2.2,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(9,-18,1,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(10,-19,0.6,0,Math.PI*2);ctx.fill();
+  // 目（赤アイリング）
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(13,-23,4.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#d42020';ctx.beginPath();ctx.arc(13,-23,2.8,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(13,-23,1.2,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#aa2020';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.arc(13,-23,4.5,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(14,-24,1,0,Math.PI*2);ctx.fill();
   // 怒り眉
-  ctx.strokeStyle='#1c1c1c';ctx.lineWidth=1.4;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(4,-23);ctx.lineTo(14,-21);ctx.stroke();
+  ctx.strokeStyle='#555';ctx.lineWidth=1.4;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(7,-29);ctx.lineTo(16,-27);ctx.stroke();
 
-  // くちばし（赤）
-  ctx.fillStyle='#c03020';
-  ctx.beginPath();ctx.moveTo(15,-14);ctx.lineTo(23,-12);ctx.lineTo(15,-10);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#1c1c14';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(15,-12);ctx.lineTo(22,-12);ctx.stroke();
+  // くちばし（ピンク・大きめ）
+  ctx.fillStyle='#d05878';
+  ctx.beginPath();ctx.moveTo(17,-19);ctx.lineTo(30,-15);ctx.lineTo(17,-10);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#a04060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(17,-14.5);ctx.lineTo(29,-14.5);ctx.stroke();
 
   // 足
-  ctx.strokeStyle='#c03020';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.strokeStyle='#d080a0';ctx.lineWidth=3;ctx.lineCap='round';
   ctx.beginPath();ctx.moveTo(-2,18);ctx.lineTo(-2,26+lp*-4);ctx.stroke();
   ctx.beginPath();ctx.moveTo(6,18);ctx.lineTo(6,26+(1-lp)*-4);ctx.stroke();
 
@@ -880,6 +816,7 @@ function drawCrowSprite(x,y,t,flash=0,diveMode=false,facingLeft=false,gold=false
   ctx.save();
   ctx.translate(x+18,y+16);
   if(facingLeft) ctx.scale(-1,1);
+  ctx.scale(1.3,1.3);
   if(flash>0) ctx.globalAlpha=0.4+Math.sin(flash*1.8)*0.6;
   if(diveMode) ctx.rotate(facingLeft?-0.4:0.4);
   if(gold){ ctx.shadowColor='#f0d000'; ctx.shadowBlur=12; }
@@ -888,8 +825,8 @@ function drawCrowSprite(x,y,t,flash=0,diveMode=false,facingLeft=false,gold=false
   const wingC  = gold?'#d49000':'#5a6080';
   const wingC2 = gold?'#c08000':'#404860';
   const headC  = gold?'#a06800':'#383d55';
-  const beakC  = gold?'#806000':'#6a7090';
-  const eyeC   = gold?'#ff2020':'#ff3030';
+  const beakC  = gold?'#c09020':'#8090a8';
+  const eyeC   = gold?'#ff2020':'#ff4444';
   const eyeC2  = gold?'#ff6060':'#ff7070';
   // 影
   ctx.fillStyle='rgba(0,0,0,0.18)';
@@ -927,11 +864,11 @@ function drawCrowSprite(x,y,t,flash=0,diveMode=false,facingLeft=false,gold=false
   ctx.fillStyle=eyeC2;
   ctx.beginPath();ctx.arc(5.5,-9.5,1,0,Math.PI*2);ctx.fill();
 
-  // くちばし（とがった）
+  // くちばし（自然なサイズ）
   ctx.fillStyle=beakC;
-  ctx.beginPath();ctx.moveTo(7,-8);ctx.lineTo(16,-7);ctx.lineTo(7,-5);ctx.closePath();ctx.fill();
-  ctx.strokeStyle=gold?'#a08020':'#444';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(7,-6.5);ctx.lineTo(15,-6.5);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(6,-10);ctx.lineTo(16,-8);ctx.lineTo(6,-5);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=gold?'#a08020':'#606878';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(6,-7.5);ctx.lineTo(15,-7.5);ctx.stroke();
 
   // 尾羽
   ctx.fillStyle=headC;
