@@ -1038,12 +1038,12 @@ function draw(){
     function getTitle(){
       if(state==='clear'){
         const sec=clearTime/1000;
-        if(score>=1000&&sec<120) return {t:'🏆 伝説のブン',m:'神速かつ高得点！まさに伝説！',c:'#e8d000'};
-        if(score>=800&&sec<120)  return {t:'🦅 ハヤブサのブン',m:'速い！そして強い！',c:'#e8d000'};
-        if(score>=1111)          return {t:'👑 文鳥神ヨイ',m:'1111点超え…もはや神の領域！',c:'#e8a000'};
-        if(score>=1000)          return {t:'💪 覇権ブン',m:'1000点超え！完全制覇！',c:'#d06020'};
-        if(score>=600)           return {t:'🌟 文鳥界のブン',m:'素晴らしいプレイ！文鳥界の頂点へ！',c:'#5ab040'};
-        if(score>=400)           return {t:'🌱 豆苗の使い手',m:'ナイスクリア！豆苗を極めた！',c:'#5ab040'};
+        if(score>=1400&&sec<120) return {t:'🏆 伝説のブン',m:'神速かつ高得点！まさに伝説！',c:'#e8d000'};
+        if(score>=1100&&sec<120)  return {t:'🦅 ハヤブサのブン',m:'速い！そして強い！',c:'#e8d000'};
+        if(score>=1500)          return {t:'👑 文鳥神ヨイ',m:'1500点超え…もはや神の領域！',c:'#e8a000'};
+        if(score>=1300)          return {t:'💪 覇権ブン',m:'1300点超え！完全制覇！',c:'#d06020'};
+        if(score>=900)           return {t:'🌟 文鳥界のブン',m:'素晴らしいプレイ！文鳥界の頂点へ！',c:'#5ab040'};
+        if(score>=600)           return {t:'🌱 豆苗の使い手',m:'ナイスクリア！豆苗を極めた！',c:'#5ab040'};
         return {t:'🐦 誇らしげなブン',m:'クリアおめでとう！胸を張れ！',c:'#c47a3a'};
       } else {
         if(stage===3) return {t:'😇 もう少し！',m:'ステージ3まで到達！あと一歩！',c:'#c47a3a'};
