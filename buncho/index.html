@@ -357,6 +357,7 @@ function update(){
   }
 
   // 通常敵
+  let hitByEnemy=false;
   for(const e of enemies){
     if(!e.alive)continue;
     e.t++;
@@ -365,28 +366,31 @@ function update(){
       const isGold=e.gold||false;
       e.t++;
       if(isGold){
-        // 金カラス：プレイヤーをしつこく追跡（ゆっくりめ）
+        // 金カラス：プレイヤーをしつこく追跡（なめらか）
         const dx=bird.x-e.x;
         const dy=bird.y-e.y;
-        e.vx+=(dx>0?1:-1)*0.09;
-        e.vy=(e.vy||0)+(dy>0?1:-1)*0.06;
-        e.vx=Math.max(-2.8,Math.min(2.8,e.vx));
-        e.vy=Math.max(-2,Math.min(2,e.vy));
+        const dist=Math.sqrt(dx*dx+dy*dy)||1;
+        const spd=2.2;
+        const txvx=(dx/dist)*spd;
+        const txvy=(dy/dist)*spd;
+        e.vx=e.vx*0.94+txvx*0.06;
+        e.vy=(e.vy||0)*0.94+txvy*0.06;
         e.x+=e.vx;
         e.y+=e.vy;
         e.facingLeft=e.vx<0;
       } else {
-        // 通常カラス：ゆったりサイン波で上下
+        // 通常カラス：ゆったりサイン波で上下（速度ベースで滑らか）
         e.x+=e.vx;
         if(e.x<40){e.vx=Math.abs(e.vx);}
         if(e.x>stageLen()-80){e.vx=-Math.abs(e.vx);}
         e.facingLeft=e.vx<0;
+        const targetY=e.baseY+Math.sin(e.t*0.022)*18;
+        e.y=e.y*0.92+targetY*0.08;
         const distX=Math.abs(e.x-bird.x);
         if(!e.diveMode){
-          e.y=e.baseY+Math.sin(e.t*0.022)*18;
           if(distX<120&&e.y<bird.y-20){ e.diveMode=true; e.diveTimer=0; }
         } else {
-          e.y+=2.5; e.diveTimer++;
+          e.y+=2.0; e.diveTimer++;
           if(e.y>e.baseY+20||e.diveTimer>25){ e.diveMode=false; e.diveTimer=0; }
         }
       }
@@ -395,23 +399,28 @@ function update(){
         if(bird.vy>0&&bird.y+bird.h<e.y+e.h*0.5){
           e.alive=false;bird.vy=-10;bird.jumpsLeft=2;score+=isGold?40:15;
           for(let i=0;i<10;i++) particles.push({x:e.x+e.w/2,y:e.y,vx:(rnd01()-.5)*6,vy:rnd01()*-5-1,life:28,max:28,c:isGold?'#f0d000':'#2a2a3a'});
-        } else {die();return;}
+        } else { hitByEnemy=true; }
       }
     } else {
       e.x+=e.vx;
       if(e.x<40)e.vx=Math.abs(e.vx);
       if(e.x>stageLen()-80)e.vx=-Math.abs(e.vx);
-      // 踏む → 一発で倒す
-      if(aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,e.x,e.y,e.w,e.h)){
+      // ヘビは中央寄り(左右20px除いた範囲)だけ踏める
+      const sx = e.type==='snake' ? e.x+20 : e.x;
+      const sw = e.type==='snake' ? e.w-40 : e.w;
+      if(aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,sx,e.y,sw,e.h)){
         if(bird.vy>0&&bird.y+bird.h<e.y+e.h*0.5){
           e.alive=false;bird.vy=-8;bird.jumpsLeft=2;
           score+=e.type==='snake'?20:10;
           const ec=e.type==='snake'?'#4aa030':'#9090a8';
           for(let i=0;i<10;i++) particles.push({x:e.x+e.w/2,y:e.y,vx:(rnd01()-.5)*5,vy:rnd01()*-4-1,life:28,max:28,c:ec});
-        } else {die();return;}
+        } else if(aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,e.x,e.y,e.w,e.h)){
+          hitByEnemy=true;
+        }
       }
     }
   }
+  if(hitByEnemy){die();return;}
   // 通常敵×豆苗ヒット（猫2回・蛇3回）
   for(const s of playerShots){
     if(!s.alive)continue;
