@@ -304,7 +304,25 @@ function bindBtn(id,code){
   b.addEventListener('mousedown',dn);b.addEventListener('mouseup',up);
 }
 bindBtn('bl','ArrowLeft');bindBtn('br','ArrowRight');bindBtn('bj','Space');
-canvas.addEventListener('touchstart',()=>{if(state==='start'||state==='dead'||state==='clear')startGame();});
+canvas.addEventListener('touchstart',e=>{
+  if(state==='start'||state==='dead'||state==='clear'){
+    const rect=canvas.getBoundingClientRect();
+    const scaleX=canvas.width/rect.width;
+    const scaleY=canvas.height/rect.height;
+    const tx=(e.touches[0].clientX-rect.left)*scaleX;
+    const ty=(e.touches[0].clientY-rect.top)*scaleY;
+    const top=20, by2=top+264;
+    if(state==='dead'||state==='clear'){
+      // ポストボタン（右）
+      if(tx>W/2+13&&tx<W/2+148&&ty>by2-17&&ty<by2+17){
+        openXShare(); return;
+      }
+      // リスタートボタン（左）→ それ以外のタップもリスタート
+      startGame(); return;
+    }
+    startGame();
+  }
+});
 // 投げるボタン（溜め対応）
 const bthEl=document.getElementById('bth');
 bthEl.addEventListener('touchstart',e=>{e.preventDefault();startCharge();},{passive:false});
@@ -1037,12 +1055,13 @@ function draw(){
     function getTitle(){
       if(state==='clear'){
         const sec=clearTime/1000;
+        if(score>=1800&&sec<120) return {t:'🏆 伝説のブン',m:'神速かつ高得点！まさに伝説！',c:'#e8d000'};
         if(score>=1800)          return {t:'👑 文鳥神ヨイ',m:'1800点超え…もはや神の領域！',c:'#e8a000'};
-        if(score>=1680&&sec<120) return {t:'🏆 伝説のブン',m:'神速かつ高得点！まさに伝説！',c:'#e8d000'};
-        if(score>=1560)          return {t:'💪 覇権ブン',m:'1560点超え！完全制覇！',c:'#d06020'};
-        if(score>=1320&&sec<120) return {t:'🦅 ハヤブサのブン',m:'速い！そして強い！',c:'#e8d000'};
-        if(score>=1080)          return {t:'🌟 文鳥界のブン',m:'素晴らしいプレイ！文鳥界の頂点へ！',c:'#5ab040'};
-        if(score>=720)           return {t:'🌱 豆苗の使い手',m:'ナイスクリア！豆苗を極めた！',c:'#5ab040'};
+        if(score>=1600&&sec<120) return {t:'⚡ 必殺仕事ブン',m:'速い！そして強い！必殺の一撃！',c:'#e8d000'};
+        if(score>=1500)          return {t:'💪 覇権ブン',m:'1500点超え！完全制覇！',c:'#d06020'};
+        if(score>=1400&&sec<120) return {t:'🦅 ハヤブサのブン',m:'スピードと実力を兼ね備えた猛者！',c:'#e8d000'};
+        if(score>=1200)          return {t:'🌟 文鳥界のブン',m:'素晴らしいプレイ！文鳥界の頂点へ！',c:'#5ab040'};
+        if(score>=1000)          return {t:'🌱 豆苗の使い手',m:'ナイスクリア！豆苗を極めた！',c:'#5ab040'};
         return {t:'🐦 誇らしげなブン',m:'クリアおめでとう！胸を張れ！',c:'#c47a3a'};
       } else {
         if(stage===3) return {t:'😇 もう少し！',m:'ステージ3まで到達！あと一歩！',c:'#c47a3a'};
@@ -1099,17 +1118,55 @@ function draw(){
       ctx.fillText(val, col, row+26);
     });
 
-    // 再プレイ
+    // ボタン2つ横並び（リスタート左・ポスト右）
+    const by2=top+264;
+    // リスタート
     ctx.fillStyle='rgba(255,255,255,0.08)';
-    ctx.fillRect(W/2-90,top+230,180,30);
-    ctx.fillStyle='#c47a3a';
-    ctx.font='0.68rem "Noto Sans JP",sans-serif';
+    ctx.strokeStyle='#555';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(W/2-148,by2-17,135,34,17);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.font='0.72rem "Noto Sans JP",sans-serif';
     ctx.textAlign='center';
-    ctx.fillText(isClr?'タップ / スペースでもう一度':'めげずにリスタート',W/2,top+250);
+    ctx.fillText(isClr?'もう一度':'めげずにリスタート',W/2-80,by2+6);
+    // ポストする
+    ctx.fillStyle='rgba(0,0,0,0.85)';
+    ctx.strokeStyle='#444';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(W/2+13,by2-17,135,34,17);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.font='0.72rem "Noto Sans JP",sans-serif';
+    ctx.fillText('🐦 ポストする',W/2+80,by2+6);
   }
 }
 
 function loop(){update();draw();requestAnimationFrame(loop);}
+
+function openXShare(){
+  const sec=Math.floor(clearTime/1000);
+  const timeStr=Math.floor(sec/60)+':'+(sec%60<10?'0':'')+sec%60;
+  const isClr=state==='clear';
+  // 称号
+  let t='🐦 誇らしげなブン';
+  if(isClr){
+    if(score>=1800&&sec<120) t='🏆 伝説のブン';
+    else if(score>=1800) t='👑 文鳥神ヨイ';
+    else if(score>=1600&&sec<120) t='⚡ 必殺仕事ブン';
+    else if(score>=1500) t='💪 覇権ブン';
+    else if(score>=1400&&sec<120) t='🦅 ハヤブサのブン';
+    else if(score>=1200) t='🌟 文鳥界のブン';
+    else if(score>=1000) t='🌱 豆苗の使い手';
+  } else {
+    if(stage===3) t='😇 もう少し！';
+    else if(stage===2) t='🐦 修行中';
+    else t='🥚 ひよっこ';
+  }
+  const hashtags=`#ヨイの試練 #buncho #game\n#文鳥 #豆苗`;
+  const url='https://btktune.github.io/buncho-game/buncho/';
+  const text=isClr
+    ? `ブンチョウ ヨイの試練 🌱\n称号：${t}\nSCORE: ${score} / TIME: ${timeStr}\n${url}\n\n${hashtags}`
+    : `ブンチョウ ヨイの試練 🌱\n称号：${t} / STAGE: ${stage}/3\nSCORE: ${score} / TIME: ${timeStr}\n${url}\n\n${hashtags}`;
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,'_blank');
+}
+
 resetGame();
 loop();
 </script>
