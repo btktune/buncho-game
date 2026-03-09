@@ -377,15 +377,16 @@ function update(){
   worldX=Math.max(0,Math.min(bird.x-150, stageLen()-W));
   // 歩行スコア：最大到達地点を記録して安定加算
   if(bird.x > bestX) bestX = bird.x;
-  const walkScore = Math.floor((bestX - 80) / 8);
-  score = Math.max(score, scoreBase + walkScore);
+  const walkScore = Math.floor((bestX - 80) / 17);
+  const newScore = scoreBase + walkScore;
+  if(newScore > score) score = newScore;
   if(score>hiScore)hiScore=score;
   hud();
 
   // ステージ進行
   if(stage<3&&bird.x>stageLen()){
     stage++;
-    scoreBase=score;bestX=0; // 現在のスコアを引き継ぐ
+    scoreBase=score; bestX=80; // bestX=80でwalkScore=0からスタート
     Object.assign(bird,{x:80,y:GY-bird.h,vx:0,vy:0,onGround:false,jumpsLeft:2});
     worldX=0;mamekusas=[];playerShots=[];buildStage();hud();playMusic(stage);
     for(let i=0;i<20;i++) particles.push({x:rnd01()*W,y:rnd01()*H,vx:(rnd01()-.5)*5,vy:rnd01()*-4-1,life:35,max:35,c:['#f5f3ee','#c47a3a','#d42020'][i%3]});
@@ -434,7 +435,7 @@ function update(){
       if(onScreen&&aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,e.x,e.y,e.w,e.h)){
         const stompY = bird.y+bird.h < e.y+e.h*0.6;
         if(stompY){
-          e.alive=false;bird.vy=-10;bird.jumpsLeft=2;score+=isGold?40:15;
+          e.alive=false;bird.vy=-10;bird.jumpsLeft=2;scoreBase+=isGold?70:30;
           for(let i=0;i<10;i++) particles.push({x:e.x+e.w/2,y:e.y,vx:(rnd01()-.5)*6,vy:rnd01()*-5-1,life:28,max:28,c:isGold?'#f0d000':'#2a2a3a'});
         } else { hitByEnemy=true; }
       }
@@ -449,9 +450,10 @@ function update(){
         const stompY = bird.y+bird.h < e.y+e.h*0.6;
         if(stompY){
           e.alive=false;bird.vy=-8;bird.jumpsLeft=2;
-          score+=e.type==='snake'?20:10;
+          const pts=e.type==='snake'?(e.gold?50:30):( e.gold?30:20);
+          scoreBase+=pts;
           const ec=e.type==='snake'?'#4aa030':'#9090a8';
-          for(let i=0;i<10;i++) particles.push({x:e.x+e.w/2,y:e.y,vx:(rnd01()-.5)*5,vy:rnd01()*-4-1,life:28,max:28,c:ec});
+          for(let i=0;i<10;i++) particles.push({x:e.x+e.w/2,y:e.y,vx:(rnd01()-.5)*5,vy:rnd01()*-4-1,life:28,max:28,c:e.gold?'#f0d000':ec});
         } else if(aabb(bird.x+4,bird.y+4,bird.w-8,bird.h-8,e.x,e.y,e.w,e.h)){
           hitByEnemy=true;
         }
@@ -470,12 +472,12 @@ function update(){
         s.alive=false;
         e.hp--;
         e.hitFlash=12;
-        score+=e.type==='snake'?10:5;
+        scoreBase+=5;
         const ec=e.type==='snake'?'#4aa030':'#9090a8';
         for(let k=0;k<7;k++) particles.push({x:s.x,y:s.y,vx:(rnd01()-.5)*5,vy:rnd01()*-4-1,life:20,max:20,c:ec});
         if(e.hp<=0){
           e.alive=false;
-          score+=e.type==='snake'?10:e.type==='crow'?10:5;
+          scoreBase+=5;
           const ec=e.type==='snake'?'#4aa030':e.type==='crow'?'#2a2a3a':'#9090a8';
           for(let k=0;k<10;k++) particles.push({x:e.x+e.w/2,y:e.y,vx:(rnd01()-.5)*6,vy:rnd01()*-5-1,life:28,max:28,c:ec});
         }
@@ -510,7 +512,7 @@ function update(){
     }
     if(aabb(bird.x+6,bird.y+6,bird.w-12,bird.h-10,boss.x+15,boss.y+15,boss.w-30,boss.h-30)){
       if(bird.vy>0&&bird.y+bird.h<boss.y+boss.h*0.33){
-        boss.hp--;boss.hitFlash=18;bird.vy=-11;bird.jumpsLeft=2;score+=50;
+        boss.hp--;boss.hitFlash=18;bird.vy=-11;bird.jumpsLeft=2;scoreBase+=50;
         for(let i=0;i<18;i++) particles.push({x:boss.x+boss.w/2,y:boss.y+20,vx:(rnd01()-.5)*9,vy:rnd01()*-7-1,life:38,max:38,c:['#f5f3ee','#c47a3a','#5ab040','#e8d000'][i%4]});
         if(boss.hp<=0){
           boss.alive=false;state='clear';clearTime=Date.now()-startTime;stopMusic();
@@ -537,7 +539,7 @@ function update(){
     if(s.y>GY+10||s.x<-50||s.x>stageLen()+200){s.alive=false;continue;}
     if(boss&&boss.alive&&aabb(s.x-8,s.y-8,16,16,boss.x+15,boss.y+15,boss.w-30,boss.h-30)){
       s.alive=false;
-      boss.hp--;boss.hitFlash=18;score+=30;
+      boss.hp--;boss.hitFlash=18;scoreBase+=30;
       for(let i=0;i<12;i++) particles.push({x:s.x,y:s.y,vx:(rnd01()-.5)*7,vy:rnd01()*-5-1,life:28,max:28,c:['#5ab040','#e8d000','#f5f3ee'][i%3]});
       if(boss.hp<=0){
         boss.alive=false;state='clear';clearTime=Date.now()-startTime;stopMusic();
@@ -1046,9 +1048,8 @@ function draw(){
     ctx.fillText('← → 移動　▲ ジャンプ',W/2,H/2+10);
     ctx.fillStyle='#5ab040';ctx.font='0.85rem "Noto Sans JP",sans-serif';
     ctx.fillText('🌱 ボタンで豆苗を投げる（Zキーも可）',W/2,H/2+32);
-    ctx.fillText('ネコ踏む +15　ヘビ踏む +20　ボス踏む +50　豆苗命中 +30',W/2,H/2+54);
     ctx.fillStyle='#d42020';ctx.font='bold 1.1rem "Noto Sans JP",sans-serif';
-    ctx.fillText('タップ / スペースでスタート',W/2,H/2+86);
+    ctx.fillText('タップ / スペースでスタート',W/2,H/2+66);
   }
   if(state==='dead'||state==='clear'){
     // 称号ロジック
