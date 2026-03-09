@@ -305,6 +305,7 @@ function bindBtn(id,code){
 }
 bindBtn('bl','ArrowLeft');bindBtn('br','ArrowRight');bindBtn('bj','Space');
 canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
   if(state==='start'||state==='dead'||state==='clear'){
     const rect=canvas.getBoundingClientRect();
     const scaleX=canvas.width/rect.width;
@@ -322,7 +323,7 @@ canvas.addEventListener('touchstart',e=>{
     }
     startGame();
   }
-});
+},{passive:false});
 // 投げるボタン（溜め対応）
 const bthEl=document.getElementById('bth');
 bthEl.addEventListener('touchstart',e=>{e.preventDefault();startCharge();},{passive:false});
