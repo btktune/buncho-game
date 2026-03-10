@@ -206,8 +206,8 @@ function buildStage(){
       [2550,130,72],[2760,90,68],
       // ボスアリーナ（広い平台）
       [2960,8,580],
-      // ボスを踏むための段差（アリーナ内）
-      [3020,90,70],[3160,140,70],[3300,90,70],
+      // ボスを踏むための段差（アリーナ内・高めに設定）
+      [3020,110,70],[3160,170,70],[3300,110,70],
     ].forEach(([x,dy,w])=>platforms.push({x,y:GY-dy,w,h:13}));
   }
 
@@ -238,7 +238,7 @@ function buildStage(){
     // 金色の特別敵（速い・ボスアリーナ手前）
     enemies.push({x:2400+rnd(100), y:GY-32, w:44,h:32, vx:(sp*2.4), alive:true, type:'cat', t:0, hp:2, gold:true});
     enemies.push({x:2600+rnd(100), y:GY-28, w:120,h:28, vx:-(sp*2.0), alive:true, type:'snake', t:0, hp:3, gold:true});
-    boss={x:3060,y:GY-130,w:120,h:120,hp:8,maxHp:8,alive:true,t:0,vx:1.2,throwTimer:0,hitFlash:0};
+    boss={x:3060,y:GY-170,w:120,h:120,hp:8,maxHp:8,alive:true,t:0,vx:1.2,throwTimer:0,hitFlash:0};
   }
 
   floats=[];
@@ -512,16 +512,18 @@ function update(){
         mamekusas.push({x:bx,y:by,vx:dir*(2+rnd(2)),vy:-3.5-rnd(2),alive:true,t:0});
       }
     }
-    if(aabb(bird.x+6,bird.y+6,bird.w-12,bird.h-10,boss.x+15,boss.y+15,boss.w-30,boss.h-30)){
-      if(bird.vy>0&&bird.y+bird.h<boss.y+boss.h*0.33){
-        boss.hp--;boss.hitFlash=18;bird.vy=-11;bird.jumpsLeft=2;scoreBase+=50;
-        for(let i=0;i<18;i++) particles.push({x:boss.x+boss.w/2,y:boss.y+20,vx:(rnd01()-.5)*9,vy:rnd01()*-7-1,life:38,max:38,c:['#f5f3ee','#c47a3a','#5ab040','#e8d000'][i%4]});
-        if(boss.hp<=0){
-          boss.alive=false;state='clear';clearTime=Date.now()-startTime;stopMusic();
-          for(let i=0;i<50;i++) particles.push({x:rnd01()*W+worldX,y:rnd01()*H,vx:(rnd01()-.5)*10,vy:rnd01()*-8-2,life:55,max:55,c:['#f5f3ee','#c47a3a','#d42020','#5ab040','#e8d000'][i%5]});
-        }
-      } else {die();return;}
-    }
+    // 踏み判定：ヨイ全体 vs ボスの上半分（vy条件なし）
+    const stompHit = aabb(bird.x,bird.y,bird.w,bird.h, boss.x,boss.y,boss.w,boss.h*0.55);
+    // 体当たり判定：ボス下半分
+    const bodyHit  = aabb(bird.x+6,bird.y+6,bird.w-12,bird.h-12, boss.x+8,boss.y+boss.h*0.45,boss.w-16,boss.h*0.55);
+    if(stompHit){
+      boss.hp--;boss.hitFlash=18;bird.vy=-11;bird.jumpsLeft=2;scoreBase+=50;
+      for(let i=0;i<18;i++) particles.push({x:boss.x+boss.w/2,y:boss.y+20,vx:(rnd01()-.5)*9,vy:rnd01()*-7-1,life:38,max:38,c:['#f5f3ee','#c47a3a','#5ab040','#e8d000'][i%4]});
+      if(boss.hp<=0){
+        boss.alive=false;state='clear';clearTime=Date.now()-startTime;stopMusic();
+        for(let i=0;i<50;i++) particles.push({x:rnd01()*W+worldX,y:rnd01()*H,vx:(rnd01()-.5)*10,vy:rnd01()*-8-2,life:55,max:55,c:['#f5f3ee','#c47a3a','#d42020','#5ab040','#e8d000'][i%5]});
+      }
+    } else if(bodyHit && !stompHit){die();return;}
   }
 
   // 豆苗
@@ -539,7 +541,7 @@ function update(){
     if(!s.alive)continue;
     s.t++;s.x+=s.vx;s.vy+=0.28;s.y+=s.vy;
     if(s.y>GY+10||s.x<-50||s.x>stageLen()+200){s.alive=false;continue;}
-    if(boss&&boss.alive&&aabb(s.x-8,s.y-8,16,16,boss.x+15,boss.y+15,boss.w-30,boss.h-30)){
+    if(boss&&boss.alive&&aabb(s.x-8,s.y-8,16,16,boss.x+10,boss.y+10,boss.w-20,boss.h-20)){
       s.alive=false;
       boss.hp--;boss.hitFlash=18;scoreBase+=30;
       for(let i=0;i<12;i++) particles.push({x:s.x,y:s.y,vx:(rnd01()-.5)*7,vy:rnd01()*-5-1,life:28,max:28,c:['#5ab040','#e8d000','#f5f3ee'][i%3]});
