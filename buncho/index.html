@@ -312,13 +312,14 @@ canvas.addEventListener('touchstart',e=>{
     const scaleY=canvas.height/rect.height;
     const tx=(e.touches[0].clientX-rect.left)*scaleX;
     const ty=(e.touches[0].clientY-rect.top)*scaleY;
-    const top=20, by2=top+264;
+    const top=20;
+    const btnY=top+220, btnH=50, btnW=230, gap=20;
+    const rightX=W/2+gap/2;
     if(state==='dead'||state==='clear'){
       // ポストボタン（右）
-      if(tx>W/2+13&&tx<W/2+148&&ty>by2-17&&ty<by2+17){
+      if(tx>=rightX&&tx<=rightX+btnW&&ty>=btnY&&ty<=btnY+btnH){
         openXShare(); return;
       }
-      // リスタートボタン（左）→ それ以外のタップもリスタート
       startGame(); return;
     }
     startGame();
@@ -1121,22 +1122,29 @@ function draw(){
     });
 
     // ボタン2つ横並び（リスタート左・ポスト右）
-    const by2=top+264;
+    const btnY=top+220;
+    const btnH=50;
+    const btnW=230;
+    const gap=20;
+    const leftX=W/2-btnW-gap/2;
+    const rightX=W/2+gap/2;
+
     // リスタート
-    ctx.fillStyle='rgba(255,255,255,0.08)';
-    ctx.strokeStyle='#555';ctx.lineWidth=1;
-    ctx.beginPath();ctx.roundRect(W/2-148,by2-17,135,34,17);ctx.fill();ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.10)';
+    ctx.strokeStyle='#777';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect(leftX,btnY,btnW,btnH,25);ctx.fill();ctx.stroke();
     ctx.fillStyle='#fff';
-    ctx.font='0.72rem "Noto Sans JP",sans-serif';
+    ctx.font='bold 0.78rem "Noto Sans JP",sans-serif';
     ctx.textAlign='center';
-    ctx.fillText(isClr?'もう一度':'めげずにリスタート',W/2-80,by2+6);
+    ctx.fillText(isClr?'もう一度':'めげずにリスタート',leftX+btnW/2,btnY+btnH/2+6);
+
     // ポストする
     ctx.fillStyle='rgba(0,0,0,0.85)';
-    ctx.strokeStyle='#444';ctx.lineWidth=1;
-    ctx.beginPath();ctx.roundRect(W/2+13,by2-17,135,34,17);ctx.fill();ctx.stroke();
+    ctx.strokeStyle='#666';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect(rightX,btnY,btnW,btnH,25);ctx.fill();ctx.stroke();
     ctx.fillStyle='#fff';
-    ctx.font='0.72rem "Noto Sans JP",sans-serif';
-    ctx.fillText('🐦 ポストする',W/2+80,by2+6);
+    ctx.font='bold 0.78rem "Noto Sans JP",sans-serif';
+    ctx.fillText('🐦 ポストする',rightX+btnW/2,btnY+btnH/2+6);
   }
 }
 
