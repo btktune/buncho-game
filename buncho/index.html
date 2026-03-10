@@ -1268,14 +1268,7 @@ function openXShare(){
     ? `ブンチョウ ヨイの試練 🌱\n称号：${t}\nSCORE: ${score} / TIME: ${timeStr}\n${url}\n\n${hashtags}`
     : `ブンチョウ ヨイの試練 🌱\n称号：${t} / STAGE: ${stage}/3\nSCORE: ${score} / TIME: ${timeStr}\n${url}\n\n${hashtags}`;
   const tweetUrl=`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-  // Twitter内蔵ブラウザでもwindow.openが動くようaタグで開く
-  const a=document.createElement('a');
-  a.href=tweetUrl;
-  a.target='_blank';
-  a.rel='noopener noreferrer';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  window.location.href=tweetUrl;
 }
 
 // 初期描画のみ行い、AudioContextは触らない
