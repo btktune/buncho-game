@@ -6,15 +6,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>ブンチョウ ヨイの試練</title>
 <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-5CQTM51DN2"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-5CQTM51DN2');
+  // Analyticsを遅延読み込み（ゲームの邪魔をしない）
+  window.addEventListener('load', function(){
+    const s=document.createElement('script');
+    s.async=true;
+    s.src='https://www.googletagmanager.com/gtag/js?id=G-5CQTM51DN2';
+    document.head.appendChild(s);
+    gtag('js', new Date());
+    gtag('config', 'G-5CQTM51DN2');
+    // Google Fontsも遅延読み込み
+    const l=document.createElement('link');
+    l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap';
+    document.head.appendChild(l);
+  });
 </script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap');
   :root { --black:#1a1a1a; --white:#f0ede8; --grey:#9a9fa8; --terra:#c47a3a; --red:#d42020; --dark:#3a3f44; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--black); display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:'Noto Sans JP',sans-serif; overflow:hidden; touch-action:none; }
@@ -400,13 +410,13 @@ function doJump(){
 }
 
 function startGame(){
-  // AudioContextをユーザー操作の中で直接作成・unlock
-  if(!audioCtx){
-    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  }
-  // resumeを確実に待ってから音楽開始
-  const doStart=()=>{ resetGame(); state='play'; playMusic(1); };
-  if(audioCtx.state!=='running'){
+  try {
+    if(!audioCtx){
+      audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    }
+  } catch(e){ audioCtx=null; }
+  const doStart=()=>{ resetGame(); state='play'; if(audioCtx) playMusic(1); };
+  if(audioCtx && audioCtx.state!=='running'){
     audioCtx.resume().then(doStart).catch(doStart);
   } else {
     doStart();
@@ -1260,7 +1270,10 @@ function openXShare(){
   window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,'_blank');
 }
 
-resetGame();
+// 初期描画のみ行い、AudioContextは触らない
+state='start';
+buildStage();
+hud();
 loop();
 </script>
 
