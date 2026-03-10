@@ -394,7 +394,7 @@ function doJump(){
   if(bird.jumpsLeft>0){
     bird.vy=bird.jumpsLeft===2?-11.5:-9.5;
     bird.jumpsLeft--;bird.onGround=false;
-    const col=bird.jumpsLeft===0?'#d42020':'#f5f3ee';
+    const col=bird.jumpsLeft===0?'#88ccff':'#f5f3ee';
     for(let i=0;i<6;i++) particles.push({x:bird.x+bird.w/2,y:bird.y+bird.h,vx:(rnd01()-.5)*3.5,vy:rnd01()*-2.5,life:20,max:20,c:col});
   }
 }
