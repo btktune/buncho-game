@@ -206,8 +206,8 @@ function buildStage(){
       [2550,130,72],[2760,90,68],
       // ボスアリーナ（広い平台）
       [2960,8,580],
-      // ボスを踏むための段差（アリーナ内・高めに設定）
-      [3020,110,70],[3160,170,70],[3300,110,70],
+      // ボスを踏むための段差（短め）
+      [3020,90,45],[3160,140,45],[3300,90,45],
     ].forEach(([x,dy,w])=>platforms.push({x,y:GY-dy,w,h:13}));
   }
 
@@ -238,7 +238,7 @@ function buildStage(){
     // 金色の特別敵（速い・ボスアリーナ手前）
     enemies.push({x:2400+rnd(100), y:GY-32, w:44,h:32, vx:(sp*2.4), alive:true, type:'cat', t:0, hp:2, gold:true});
     enemies.push({x:2600+rnd(100), y:GY-28, w:120,h:28, vx:-(sp*2.0), alive:true, type:'snake', t:0, hp:3, gold:true});
-    boss={x:3060,y:GY-170,w:120,h:120,hp:8,maxHp:8,alive:true,t:0,vx:1.2,throwTimer:0,hitFlash:0};
+    boss={x:3060,y:GY-130,w:120,h:120,hp:8,maxHp:8,alive:true,t:0,vx:1.2,throwTimer:0,hitFlash:0};
   }
 
   floats=[];
